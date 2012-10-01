@@ -1,0 +1,10 @@
+# Create EC DB
+
+curl -XPUT http://localhost:9200/test/ -d '
+index:
+ store:
+  type: memory
+'
+
+# Index movie titles
+while read line; do curl -XPOST http://localhost:9200/test/movie/ -d '{ "title":"'"$line"'" }' > /dev/null; done < movies.txt

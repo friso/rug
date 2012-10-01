@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>MoSe!</title>
+	<link href="css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+	<div class="container">
+		
+		
+		<div class="row">
+			<div class ="span6 offset3"><h1>Movie Search</h1></div>
+		</div>
+		<div class="row">
+			<div class="span10 offset1">
+				<form class="form-search">
+					<div class="input-append">
+						<input type="text" class="span7 search-query" placeholder="Movie title..." id="searchInput">
+						<button class="btn" data-loading-text="Searching..." id="searchButton">Search</button>
+					</div>
+				</form>
+			</div>
+		</div>
+		
+		<div class="row">
+			<div class="span8 offset1">
+				<table class="table table-condensed table-hover" id="resultsTable">
+					<thead><tr><th>Title</th><th>&nbsp;</th></tr></thead>
+					<tbody>
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+
+	</div>
+	<script src="js/jquery-1.8.2.min.js"></script>
+	<script src="js/bootstrap.min.js"></script>
+	
+	<script>
+		$('#searchInput').typeahead({
+			source: function(query, callback) {
+				callback(query.substring(0, 1) == 'f' ? ['friso', 'fiets', 'franeker', 'franje'] : ['heel', 'iets', 'anders'])
+			}
+		})
+		
+		$('#searchButton').on('click', function() {
+			$('#searchButton').button('loading')
+			$.getJSON('/search?q=' + $('#searchInput').val(),
+				{},
+				function(data, text) {
+					$('#resultsTable > tbody:last > tr').remove()
+					$.each(data, function(idx, value) {
+						$('#resultsTable > tbody:last').append('<tr><td class="span9">' + value['title'] + '</td><td><button class="btn btn-primary btn-mini">details</button></td></tr>')
+					})
+					$('#searchButton').button('reset')
+				}).error(function(err) {
+					$('#resultsTable > tbody:last > tr').remove()
+					$('#searchButton').button('reset')
+				})
+			
+			return false
+		})
+		
+	</script>
+</body>
+</html>
