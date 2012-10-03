@@ -1,5 +1,4 @@
 # Create EC DB
-
 curl -XPUT http://localhost:9200/test/ -d '
 index:
  store:
@@ -7,4 +6,9 @@ index:
 '
 
 # Index movie titles
-while read line; do curl -XPOST http://localhost:9200/test/movie/ -d '{ "title":"'"$line"'" }' > /dev/null; done < movies.txt
+time while read line; do curl -s -XPOST http://localhost:9200/test/movie/ -d '{ "title":"'"$line"'" }' > /dev/null; done < movies.txt
+
+# Start Flume agent (from: /Users/friso/Documents/rug/flume)
+switch-pseudo
+flume-ng agent -n logagent -f logagent.properties
+
