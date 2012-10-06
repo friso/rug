@@ -24,7 +24,7 @@ for month in range(7,10):
 					term = np.random.zipf(1.15)
 					milli = 0.5
 					if term < len(movies):
-						search = pattern.match(movies[term]).groups()[0]
+						search = pattern.match(movies[term]).groups()[0].strip()
 						print '127.0.0.1\t%4d-%02d-%02dT%02d:%02d:%02d.%03dZ\tGET /search?q=%s HTTP/1.1\t200\t%s' % (
 						year,
 						month,
