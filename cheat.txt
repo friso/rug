@@ -12,3 +12,22 @@ time while read line; do curl -s -XPOST http://localhost:9200/test/movie/ -d '{ 
 switch-pseudo
 flume-ng agent -n logagent -f logagent.properties
 
+# Make stuff happen
+# in log dir:
+rm access.log && touch access.log
+cat ../../data/fakelog.log >> access.log
+
+# run Hadoop job continuously
+# in Hadoop job dir
+switch-pseudo
+while true; do hadoop jar target/moviesearch-0.1-SNAPSHOT-job.jar -logdir /logs/ -output /output/ -redis localhost -oldlogdir /oldlogs/; echo Sleeping...; sleep 60; done
+
+# some fake search requests
+time for i in {1..1000}; do curl -s http://localhost:3000/search?q=terminator+judgment > /dev/null; done
+
+
+# create Hive table from old logs
+# make sure Hive warehouse dir exists at: /Users/friso/Desktop/hive/warehouse
+create external table logs (host string, logdate string, httpline string, status int, query string) row format delimited fields terminated by '\t' location '/oldlogs';
+# do some stats
+create table logstats as select query, count(*) as cnt from logs where query <> '-' group by query order by cnt desc;

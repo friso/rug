@@ -28,7 +28,7 @@ public class TermStatToSuggestionsReducer extends Reducer<Text, TermScoreWritabl
 		Collections.sort(list, new Comparator<String>() {
 			@Override
 			public int compare(String left, String right) {
-				return Double.compare(scores.get(left), scores.get(right));
+				return Double.compare(scores.get(right), scores.get(left));
 			}
 		});
 		

@@ -28,40 +28,75 @@ import org.apache.hadoop.util.ToolRunner;
 
 public class Main extends Configured implements Tool {
 
+	private static final String OPTION_REDIS = "redis";
+	private static final String OPTION_OLDLOGDIR = "oldlogdir";
+	private static final String OPTION_LOGDIR = "logdir";
+	private static final String OPTION_OUTPUT = "output";
+	private static final String TERMCOUNTS_DIR_SUFFIX = "/termcounts/";
+	private static final String SUGGESTIONS_SUFFIX = "/suggestions";
+
 	@Override
 	public int run(String[] args) throws Exception {
 		CommandLine cmd = setupCommandLineParsing(args);
 		FileSystem fs = FileSystem.get(getConf());
 		
-		if (!runLogProcessingJob(cmd, fs)) {
+		FileStatus[] logInputs = getLogFileList(cmd, fs);
+		if (logInputs.length == 0) {
+			//nothing to do
+			return 0;
+		}
+		
+		if (!runLogProcessingJob(cmd, fs, logInputs)) {
 			return 1;
 		}
 		
-		return runTermCountProcessingJob(cmd, fs) ? 0 : 1;
+		if (!runTermCountProcessingJob(cmd, fs)) {
+			return 1;
+		}
+		
+		RedisUploader.uploadSuggestions(getConf(), new Path(cmd.getOptionValue(OPTION_OUTPUT) + SUGGESTIONS_SUFFIX + "/part*"), cmd.getOptionValue(OPTION_REDIS));
+		
+		return 0;
 	}
 
-	private boolean runTermCountProcessingJob(CommandLine cmd, FileSystem fs) throws IOException, InterruptedException, ClassNotFoundException {
-		FileStatus[] termcountInputs = fs.listStatus(new Path(cmd.getOptionValue("output") + "/termcounts/"));
-		Path suggestionsOutput = new Path(cmd.getOptionValue("output") + "/newsuggestions");
-		Job statToSuggestionsJob = createStatToSuggestionsJob(termcountInputs, suggestionsOutput);
-		return statToSuggestionsJob.waitForCompletion(true);
-	}
-
-	private boolean runLogProcessingJob(CommandLine cmd, FileSystem fs) throws IOException, InterruptedException, ClassNotFoundException {
-		FileStatus[] logInputs = fs.listStatus(new Path(cmd.getOptionValue("logdir")), new PathFilter() {
+	private FileStatus[] getLogFileList(CommandLine cmd, FileSystem fs) throws IOException {
+		FileStatus[] logInputs = fs.listStatus(new Path(cmd.getOptionValue(OPTION_LOGDIR)), new PathFilter() {
 			@Override
 			public boolean accept(Path path) {
 				return !path.getName().endsWith(".tmp");
 			}
 		});
+		return logInputs;
+	}
+
+	private boolean runTermCountProcessingJob(CommandLine cmd, FileSystem fs) throws IOException, InterruptedException, ClassNotFoundException {
+		FileStatus[] termcountInputs = fs.listStatus(new Path(cmd.getOptionValue(OPTION_OUTPUT) + TERMCOUNTS_DIR_SUFFIX));
+		Path suggestionsOutput = new Path(cmd.getOptionValue(OPTION_OUTPUT) + SUGGESTIONS_SUFFIX);
+		if (fs.exists(suggestionsOutput)) {
+			fs.delete(suggestionsOutput, true);
+		}
+		
+		Job statToSuggestionsJob = createStatToSuggestionsJob(termcountInputs, suggestionsOutput);
+		
+		return statToSuggestionsJob.waitForCompletion(true);
+	}
+
+	private boolean runLogProcessingJob(CommandLine cmd, FileSystem fs, FileStatus[] logInputs) throws IOException, InterruptedException, ClassNotFoundException {
 		printProcessingMessage(logInputs);
 		
 		Path termToTimeslotOutput = new Path(
-				cmd.getOptionValue("output") + "/termcounts/" + 
+				cmd.getOptionValue(OPTION_OUTPUT) + TERMCOUNTS_DIR_SUFFIX + 
 				new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(new Date()));
 		Job termToTimeslotJob = createTermToTimeslotJob(logInputs, termToTimeslotOutput);
 		
-		return termToTimeslotJob.waitForCompletion(true);
+		if (termToTimeslotJob.waitForCompletion(true)) {
+			for (FileStatus status : logInputs) {
+				fs.rename(status.getPath(), new Path(cmd.getOptionValue(OPTION_OLDLOGDIR) + "/" + status.getPath().getName()));
+			}
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	private void printProcessingMessage(FileStatus[] logInputs) {
@@ -75,16 +110,28 @@ public class Main extends Configured implements Tool {
 	private CommandLine setupCommandLineParsing(String[] args) throws ParseException {
 		Options options = new Options();
 		options.addOption(OptionBuilder
-				.withArgName("logdir")
+				.withArgName(OPTION_LOGDIR)
 				.hasArg()
 				.withDescription("HDFS directory that Flume leaves the log files in.")
-				.create("logdir"));
+				.create(OPTION_LOGDIR));
 		
 		options.addOption(OptionBuilder
-				.withArgName("output")
+				.withArgName(OPTION_OUTPUT)
 				.hasArg()
 				.withDescription("HDFS output path; will be overwritten.")
-				.create("output"));
+				.create(OPTION_OUTPUT));
+		
+		options.addOption(OptionBuilder
+				.withArgName("old logdir")
+				.hasArg()
+				.withDescription("Destination to move the log files to once processed.")
+				.create(OPTION_OLDLOGDIR));
+		
+		options.addOption(OptionBuilder
+				.withArgName("redis hostname")
+				.hasArg()
+				.withDescription("Host name of the redis instance.")
+				.create(OPTION_REDIS));
 		
 		CommandLineParser parser = new PosixParser();
 		CommandLine cmd = parser.parse(options, args);

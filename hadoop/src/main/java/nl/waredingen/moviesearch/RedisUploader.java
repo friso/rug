@@ -12,6 +12,8 @@ import org.apache.hadoop.io.Text;
 import redis.clients.jedis.Jedis;
 
 public class RedisUploader {
+	private static final int ONE_HOUR = 3600;
+
 	public static void uploadSuggestions(Configuration conf, Path source, String redisHost) throws IOException {
 		FileSystem fs = FileSystem.get(conf);
 		FileStatus[] inputs = fs.globStatus(source);
@@ -19,7 +21,7 @@ public class RedisUploader {
 		Jedis jedis = new Jedis(redisHost);		
 		jedis.connect();
 		
-		System.err.println("Processing:");
+		System.err.println("Redis uploader processing:");
 		for (FileStatus status : inputs) {
 			System.err.println("\t" + status.getPath());
 			
@@ -27,16 +29,13 @@ public class RedisUploader {
 			Text key = new Text();
 			Text value = new Text();
 			while (reader.next(key, value)) {
-				jedis.setex(key.toString(), 3600, value.toString());
+				jedis.setex(key.toString(), ONE_HOUR, value.toString());
 			}
+			reader.close();
 		}
 		
 		jedis.disconnect();
 		
 		System.err.println("Done.");
-	}
-	
-	public static void main(String[] args) throws IOException {
-		uploadSuggestions(new Configuration(), new Path("/user/friso/test1/newsuggestions/part*"), "localhost");
 	}
 }

@@ -40,7 +40,11 @@
 	<script>
 		$('#searchInput').typeahead({
 			source: function(query, callback) {
-				callback(query.substring(0, 1) == 'f' ? ['friso', 'fiets', 'franeker', 'franje'] : ['heel', 'iets', 'anders'])
+				$.getJSON('/suggest?prefix=' + $('#searchInput').val().toLowerCase(),
+				{},
+				function(data, text) {
+					callback(data)
+				})
 			}
 		})
 		
