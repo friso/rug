@@ -1,4 +1,4 @@
-# Create EC DB
+# Create ES DB
 curl -XPUT http://localhost:9200/test/ -d '
 index:
  store:
@@ -7,6 +7,9 @@ index:
 
 # Index movie titles
 time while read line; do curl -s -XPOST http://localhost:9200/test/movie/ -d '{ "title":"'"$line"'" }' > /dev/null; done < movies.txt
+
+# Sample ES query:
+curl -XPOST http://localhost:9200/test/movie/_search -d '{"query": {"query_string": {"query":"stuff"}}}'
 
 # Start Flume agent (from: /Users/friso/Documents/rug/flume)
 switch-pseudo
@@ -31,3 +34,14 @@ time for i in {1..1000}; do curl -s http://localhost:3000/search?q=terminator+ju
 create external table logs (host string, logdate string, httpline string, status int, query string) row format delimited fields terminated by '\t' location '/oldlogs';
 # do some stats
 create table logstats as select query, count(*) as cnt from logs where query <> '-' group by query order by cnt desc;
+# from bash
+hive -e 'select * from logstats limit 100' | pbcopy
+# then into R
+data = read.csv(pipe('pbpaste'), header = F, sep = '\t', col.names = c('title', 'count'))
+data = data[order(data$count, decreasing=T),]
+data$title = factor(data$title, levels=unique(as.character(data$title)))
+head(data)
+qplot(count, title, data=data)
+# the other way around
+qplot(title, count, data=data)
+
