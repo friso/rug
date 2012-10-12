@@ -9,7 +9,7 @@ index:
 time while read line; do curl -s -XPOST http://localhost:9200/test/movie/ -d '{ "title":"'"$line"'" }' > /dev/null; done < movies.txt
 
 # Sample ES query:
-curl -XPOST http://localhost:9200/test/movie/_search -d '{"query": {"query_string": {"query":"stuff"}}}'
+curl -XPOST http://localhost:9200/test/movie/_search?indent=true -d '{"query": {"query_string": {"query":"stuff"}}}'
 
 # Start Flume agent (from: /Users/friso/Documents/rug/flume)
 switch-pseudo
