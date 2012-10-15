@@ -9,7 +9,16 @@ index:
 time while read line; do curl -s -XPOST http://localhost:9200/test/movie/ -d '{ "title":"'"$line"'" }' > /dev/null; done < movies.txt
 
 # Sample ES query:
-curl -XPOST http://localhost:9200/test/movie/_search?indent=true -d '{"query": {"query_string": {"query":"stuff"}}}'
+curl -XPOST http://localhost:9200/test/movie/_search?pretty=true -d \
+'
+{
+  "query": {
+    "query_string": {
+      "query":"stuff"
+    }
+  }
+}
+'
 
 # Start Flume agent (from: /Users/friso/Documents/rug/flume)
 switch-pseudo
@@ -26,7 +35,7 @@ switch-pseudo
 while true; do hadoop jar target/moviesearch-0.1-SNAPSHOT-job.jar -logdir /logs/ -output /output/ -redis localhost -oldlogdir /oldlogs/; echo Sleeping...; sleep 60; done
 
 # some fake search requests
-time for i in {1..1000}; do curl -s http://localhost:3000/search?q=terminator+judgment > /dev/null; done
+time for i in {1..1000}; do curl -s http://localhost:3000/search?q=harold+and+kumar+go+to+white+castle > /dev/null; done
 
 
 # create Hive table from old logs
